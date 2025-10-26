@@ -1,54 +1,49 @@
----
-
-ArxPool SDK
-
-> Encrypted Pooling SDK for Arcium — collect encrypted inputs from many users, compute privately inside Arcium’s Multi-party Execution (MXE), and verify results without revealing individual data.
-
-
-
-  
-
 
 ---
 
-✨ What is ArxPool?
+# ArxPool SDK
 
-ArxPool is a reusable, privacy-first SDK that gives builders a simple API to:
+> **Encrypted Pooling SDK for Arcium**  
+> Collect encrypted inputs from users, compute privately inside Arcium’s Multi-party Execution (MXE), and verify results without revealing individual data.
 
-Collect encrypted user inputs (votes, data points, metrics).
-
-Compute privately (tally/sum/avg or custom aggregations) in Arcium MXE.
-
-Verify the attested result (job_commit, signature) offline.
-
-
-It’s designed as a developer primitive for many apps: private voting, encrypted analytics, AI collaboration, DeFi risk sharing, research, and more.
-
-> Until Arcium’s public MXE endpoints are broadly available, the SDK ships with a stub mode for demos and tests. Switching to live compute is a one-line config change once you have API credentials.
-
-
-
+[![npm version](https://img.shields.io/badge/npm-arxpool--sdk-green)](#)
+[![TypeScript](https://img.shields.io/badge/TypeScript-ESM-blue)](#)
+[![License: MIT](https://img.shields.io/badge/License-MIT-lightgrey.svg)](#)
 
 ---
 
-🚀 Features
+## ✨ What is ArxPool
 
-🔒 Privacy by default — SDK never handles plaintext user data.
+**ArxPool** is a reusable, privacy-first SDK that provides a simple API for:
 
-🧩 Composable API — createPool → joinPool → computePool → verifyResult.
+- Collecting encrypted user inputs (votes, metrics, AI updates)
+- Performing private aggregation inside **Arcium MXE**
+- Verifying attested results offline (`job_commit`, signature)
 
-✅ Verifiable outputs — Ed25519-signed attestation + job_commit.
+Use-cases:
+- 🗳️ Private DAO voting  
+- 📊 Encrypted analytics  
+- 🤖 Federated AI collaboration  
+- 💸 Confidential DeFi data  
 
-🔁 Stub → Live switch — develop now, flip to live MXE later.
-
-📦 TypeScript ESM — strict types, small footprint.
-
-
+> ⚠️ ArxPool currently runs in **stub mode** (local compute) until Arcium public API access is open.  
+> Once available, flip one flag to go live.
 
 ---
 
-📦 Install
+## 🚀 Features
 
+- 🔒 Privacy by design — no plaintext data ever leaves the user  
+- 🧩 Simple API — `createPool → joinPool → computePool → verifyResult`  
+- ✅ Ed25519 attestation for verifiable results  
+- 🔁 Stub ↔ Live switch in one line  
+- ⚙️ Written in TypeScript (ESM ready)
+
+---
+
+## 📦 Installation
+
+```bash
 npm install @arxpool-hq/sdk
 # or
 yarn add @arxpool-hq/sdk
@@ -58,30 +53,29 @@ yarn add @arxpool-hq/sdk
 
 ⚙️ Configuration
 
-Add a .env (or equivalent) to your project:
+Create a .env file:
 
-# Demo/dev by default
+# Demo (default)
 USE_STUB=true
 ARXPOOL_ATTESTER_SECRET=local-dev
 
-# Live (set these once you have access)
+# Live (once Arcium API access is granted)
 # USE_STUB=false
-# ARCIUM_API_KEY=...
-# ARXPOOL_MXE_ID=...
+# ARCIUM_API_KEY=your_api_key
+# ARXPOOL_MXE_ID=your_mxe_id
 
-Initialize once in your app:
+Initialize in your app:
 
 import { configure } from "@arxpool-hq/sdk";
 
 configure({
   useStub: process.env.USE_STUB === "true",
-  attesterSecret: process.env.ARXPOOL_ATTESTER_SECRET, // required for signing results (server-side)
-  mxeId: process.env.ARXPOOL_MXE_ID,                   // for live mode
-  arciumApiKey: process.env.ARCIUM_API_KEY,            // for live mode (backend only)
-  apiBase: process.env.ARXPOOL_API_BASE,               // optional: your collector API base
+  attesterSecret: process.env.ARXPOOL_ATTESTER_SECRET,
+  arciumApiKey: process.env.ARCIUM_API_KEY,
+  mxeId: process.env.ARXPOOL_MXE_ID,
 });
 
-> Security note: never expose ARCIUM_API_KEY or ARXPOOL_ATTESTER_SECRET to the browser. Keep secrets on the server.
+> 🔐 Never expose secrets (ARCIUM_API_KEY, ARXPOOL_ATTESTER_SECRET) to frontend code.
 
 
 
@@ -96,201 +90,171 @@ import {
   joinPool,
   computePool,
   verifyResult,
-} from "@arxpool-hq/sdk";
+} from "@arxpool/sdk";
 
 configure({ useStub: true, attesterSecret: "local-dev" });
 
-// 1) Create a pool (e.g., a poll)
+// 1. Create a new pool
 await createPool({ id: "poll-123", mode: "tally" });
 
-// 2) Users submit encrypted blobs (ciphertext strings)
+// 2. Submit encrypted inputs
 await joinPool("poll-123", {
-  ciphertext: "b64:... (opaque)",
-  senderPubkey: "BASE58_WALLET",
+  ciphertext: "b64:...",
+  senderPubkey: "BASE58_PUBKEY",
 });
 
-// 3) Run the private compute (stub or live)
-const signed = await computePool("poll-123", { demoCounts: [12, 9, 7] });
+// 3. Compute (stub or live)
+const result = await computePool("poll-123", { demoCounts: [4, 3, 2] });
 
-// 4) Verify offline
-const ok = verifyResult(signed);
-console.log("Verified:", ok); // true
+// 4. Verify result
+console.log(verifyResult(result)); // true
 
 
 ---
 
-🧰 Public API
+🧰 API Reference
 
-configure(cfg: ArxPoolConfig): void
+configure(config)
 
-Set global SDK config.
+Configure global SDK behavior.
 
 type ArxPoolConfig = {
-  useStub?: boolean;           // default: true (recommended for dev)
-  apiBase?: string;            // your collector API (optional)
-  attesterSecret?: string;     // required on server to sign results
-  mxeId?: string;              // Arcium MXE target (live)
-  arciumApiKey?: string;       // Arcium API key (live, server only)
+  useStub?: boolean;
+  apiBase?: string;
+  attesterSecret?: string;
+  mxeId?: string;
+  arciumApiKey?: string;
 };
 
-createPool(pool: Pool): Promise<Pool>
 
-Register a new pool (ID + mode).
+---
 
-type PoolMode = "tally" | "sum" | "avg";
+createPool(pool)
+
+Create a new pool.
 
 type Pool = {
   id: string;
-  mode: PoolMode;
-  meta?: Record<string, any>;
+  mode: "tally" | "sum" | "avg";
 };
 
-joinPool(poolId: string, blob: EncryptedBlob): Promise<{ ok: true }>
 
-Submit an encrypted input to the pool. The SDK treats ciphertext as an opaque string.
+---
+
+joinPool(poolId, blob)
+
+Submit encrypted data to a pool.
 
 type EncryptedBlob = {
-  ciphertext: string;   // base64 / HPKE payload
-  senderPubkey: string; // e.g., wallet pubkey (base58)
+  ciphertext: string;   // base64 or HPKE payload
+  senderPubkey: string; // wallet/public key
 };
 
-computePool(poolId: string, opts?: ComputeOptions): Promise<SignedResult>
 
-Run the aggregation in Arcium (or stub).
+---
+
+computePool(poolId, options)
+
+Run the computation.
 
 type ComputeOptions = {
-  // For stub/demo only:
-  demoCounts?: number[]; // tally mode example output
+  demoCounts?: number[]; // stub-only
 };
 
-type TallyResult = {
-  poolId: string;
-  counts?: number[];     // for "tally"
-  value?: number;        // for "sum"/"avg" (future)
-  job_commit: string;    // verifiable compute commit
-  mxe_id?: string;       // MXE ID (live)
-  timestamp: number;
-};
+Returns a signed result:
 
 type SignedResult = {
-  payload: TallyResult;
-  signer_pubkey: string; // base58
-  signature: string;     // base58 Ed25519
+  payload: {
+    poolId: string;
+    counts?: number[];
+    job_commit: string;
+    timestamp: number;
+  };
+  signer_pubkey: string;
+  signature: string;
 };
 
-verifyResult(res: SignedResult): boolean
 
-Offline verification (no network). Checks Ed25519 signature over a canonicalized JSON payload.
+---
+
+verifyResult(result)
+
+Verify the Ed25519 signature locally.
+
+verifyResult(result); // returns true or false
 
 
 ---
 
-🧱 Error Codes
+🔐 Security
 
-All thrown errors are typed objects: { code: string; message: string; hint?: string }
+Policy	Description
 
-E_INVALID_SCHEMA — inputs failed validation.
-
-E_MISSING_CONFIG — required config/secret is missing.
-
-E_COMPUTE_FAILED — compute job failed (network or MXE).
-
-E_VERIFICATION_FAILED — signature mismatch.
-
-
-
----
-
-🔐 Security Model
-
-No plaintext: SDK never decrypts user data; ciphertext is opaque.
-
-Secrets in ENV only: no hardcoding ARCIUM_API_KEY / ARXPOOL_ATTESTER_SECRET.
-
-Deterministic signatures: Ed25519 (tweetnacl) + canonical JSON.
-
-Pure verification: verifyResult() is offline & deterministic.
-
-Redacted logs: never log ciphertext or secrets (use ***ENCRYPTED***).
-
-HTTPS everywhere (enforced by your hosting/infra).
-
-
-> See: security.mdx in the web portal for a longer write-up.
-
+No plaintext	SDK never decrypts user data
+Secrets in ENV	Never hardcode sensitive keys
+Deterministic signing	Ed25519 + canonical JSON
+Offline verification	No network required
+Redacted logs	[ENCRYPTED_PAYLOAD] instead of raw data
+HTTPS only	Required for backend/collector
 
 
 
 ---
 
-🧭 Modes (Stub vs Live)
+🧭 Modes
 
-Mode	When to use	Behavior
+Mode	Use Case	Behavior
 
-Stub	Local dev, demos, CI smoke tests	computePool returns deterministic outputs and signs locally.
-Live	Once Arcium MXE API is available	Submits to Arcium MXE; returns real job_commit / receipt.
+Stub	Local dev, demo	Deterministic simulated compute
+Live	Arcium MXE	Actual encrypted aggregation
 
 
-Toggle via USE_STUB=true/false and proper env vars.
+Toggle using USE_STUB=true/false.
 
 
 ---
 
-🧬 Example (Node script)
+🌐 Example (Node Script)
 
-// examples/basic.ts
 import {
   configure, createPool, joinPool, computePool, verifyResult
 } from "@arxpool-hq/sdk";
 
 async function main() {
   configure({ useStub: true, attesterSecret: "local-dev" });
+
   await createPool({ id: "poll-xyz", mode: "tally" });
   await joinPool("poll-xyz", { ciphertext: "b64:...", senderPubkey: "BASE58..." });
 
   const res = await computePool("poll-xyz", { demoCounts: [5, 4, 3] });
   console.log("Signed:", res);
-  console.log("Verify:", verifyResult(res));
+  console.log("Verified:", verifyResult(res));
 }
 main();
-
-Run:
-
-node examples/basic.ts
 
 
 ---
 
-🌐 Example Web Portal
+🌐 Related Project
 
-A companion site shows the SDK in action (landing + docs + demo + collector API):
-
-Demo (stub mode): create → join → compute → verify
-
-Docs: Intro, Install, API, Security, Architecture
-
-Branding: Arcium-style dark theme
-
-
-> Deployed preview: https://arxpool-web-test.vercel.app
-(Swap with your production domain when ready.)
-
-
+ArxPool Web Portal
+Interactive demo + docs + collector API.
+🔗 https://arxpool-web-test.vercel.app
 
 
 ---
 
 🗺️ Roadmap
 
-[ ] Live MXE integration via @arcium-hq/client (when access opens)
+[ ] Integrate Arcium MXE client once public
 
-[ ] Reader integration for richer receipt proofs
+[ ] Reader proof verification
 
-[ ] More aggregations: median, min/max, custom reducers
+[ ] Support for new aggregation modes
 
-[ ] Wallet helpers (Solana, EVM) for user identity binding
+[ ] Wallet bindings (EVM, Solana)
 
-[ ] Optional on-chain anchoring of result hashes
+[ ] On-chain anchoring of compute receipts
 
 
 
@@ -298,18 +262,16 @@ Branding: Arcium-style dark theme
 
 🤝 Contributing
 
-PRs welcome! Please:
-
-1. Follow TypeScript strict and lint rules.
+1. Use TypeScript strict mode
 
 
-2. Add/keep unit tests for crypto & verification.
+2. Include unit tests for crypto logic
 
 
-3. Do not add telemetry/analytics deps.
+3. Never log or commit secrets
 
 
-4. Never log or commit secrets.
+4. Avoid telemetry / analytics
 
 
 
@@ -318,7 +280,28 @@ PRs welcome! Please:
 
 📄 License
 
-MIT — see LICENSE.
+MIT — 2025 ArxPool
 
 
 ---
+
+🧠 Notes
+
+Arcium MXE access may still be gated during public testnet.
+
+Keep USE_STUB=true until credentials are issued.
+
+Same SDK runs live without any code changes once access is granted.
+
+
+---
+
+📌 **Tips biar tampil full di GitHub:**
+- Pastikan file disimpan sebagai `UTF-8` tanpa BOM.  
+- Jangan taruh indentation sebelum triple backticks ``` untuk code blocks.  
+- Hindari tab di awal baris (gunakan 2–4 spasi aja).  
+- Kalau kamu edit di VSCode, pilih *"Markdown: Preview"* untuk cek format.  
+
+---
+
+
