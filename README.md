@@ -49,7 +49,6 @@ npm install @arxpool-hq/sdk
 yarn add @arxpool-hq/sdk
 
 
----
 
 ⚙️ Configuration
 
