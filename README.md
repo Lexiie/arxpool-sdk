@@ -47,13 +47,13 @@ Use-cases:
 npm install @arxpool-hq/sdk
 # or
 yarn add @arxpool-hq/sdk
+```
 
+## ⚙️ Configuration
 
+Create a `.env` file:
 
-⚙️ Configuration
-
-Create a .env file:
-
+```bash
 # Stub (default)
 USE_STUB=true
 ARXPOOL_ATTESTER_SECRET=local-dev
@@ -62,9 +62,11 @@ ARXPOOL_ATTESTER_SECRET=local-dev
 # USE_STUB=false
 ARXPOOL_NODE=https://testnet.arx.arcium.com
 ARXPOOL_ATTESTER_KEY=ed25519:your_private_key
+```
 
 Initialize in your app:
 
+```ts
 import { configure } from "@arxpool-hq/sdk";
 
 configure({
@@ -73,16 +75,15 @@ configure({
   attesterSecret: process.env.ARXPOOL_ATTESTER_SECRET,
   attesterKey: process.env.ARXPOOL_ATTESTER_KEY,
 });
+```
 
 > 🔐 Never expose signing keys (ARXPOOL_ATTESTER_SECRET / ARXPOOL_ATTESTER_KEY) to frontend code.
 
-
-
-
 ---
 
-🧪 Quickstart
+## 🧪 Quickstart
 
+```ts
 import {
   configure,
   createPool,
@@ -108,7 +109,7 @@ const result = await computePool("poll-123");
 
 // 4. Verify result
 console.log(verifyResult(result)); // true
-
+```
 
 ---
 
@@ -280,24 +281,4 @@ MIT — 2025 ArxPool
 
 
 ---
-
-🧠 Notes
-
-Arcium MXE access may still be gated during public testnet.
-
-Keep USE_STUB=true until credentials are issued.
-
-Same SDK runs live without any code changes once access is granted.
-
-
----
-
-📌 **Tips biar tampil full di GitHub:**
-- Pastikan file disimpan sebagai `UTF-8` tanpa BOM.  
-- Jangan taruh indentation sebelum triple backticks ``` untuk code blocks.  
-- Hindari tab di awal baris (gunakan 2–4 spasi aja).  
-- Kalau kamu edit di VSCode, pilih *"Markdown: Preview"* untuk cek format.  
-
----
-
 
