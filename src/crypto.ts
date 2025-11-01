@@ -1,6 +1,7 @@
-import bs58 from 'bs58';
-import nacl from 'tweetnacl';
-import { ArxPoolError } from './errors.js';
+import { createHash } from "node:crypto";
+import bs58 from "bs58";
+import nacl from "tweetnacl";
+import { ArxPoolError } from "./errors.js";
 
 const encoder = new TextEncoder();
 
@@ -33,58 +34,56 @@ export const canonicalStringify = (value: unknown): string => {
 
 const messageToBytes = (payload: unknown): Uint8Array => encoder.encode(canonicalStringify(payload));
 
-const normalizeSecret = (secret: string | Uint8Array): Uint8Array => {
-  if (typeof secret !== 'string') {
-    return new Uint8Array(secret);
+const resolveKeyPair = (secretKey: string): { secretKey: Uint8Array; publicKey: string } => {
+  const input = secretKey?.trim();
+  if (!input) {
+    throw new ArxPoolError('CONFIG_MISSING', 'Attester key is required to sign results');
   }
-  try {
-    return new Uint8Array(bs58.decode(secret));
-  } catch {
-    throw new ArxPoolError('CONFIG_INVALID', 'Attester secret must be base58-encoded Ed25519 seed');
-  }
-};
 
-export interface SignatureEnvelope {
-  signature: string;
-  publicKey: string;
-  message: string;
-}
+  const stripPrefix = (value: string): string => (value.startsWith('ed25519:') ? value.slice(8) : value);
+  const sanitized = stripPrefix(input);
 
-export interface Signer {
-  publicKey: string;
-  sign: (payload: unknown) => SignatureEnvelope;
-}
-
-export const signerFromSecret = (secret: string | Uint8Array): Signer => {
-  const raw = normalizeSecret(secret);
-  if (raw.length !== 32 && raw.length !== 64) {
-    throw new ArxPoolError('CONFIG_INVALID', 'Ed25519 secret must be 32-byte seed or 64-byte keypair');
-  }
-  const seed = raw.length === 32 ? raw : raw.slice(0, 32);
-  const keyPair = nacl.sign.keyPair.fromSeed(seed);
-  const publicKeyB58 = bs58.encode(keyPair.publicKey);
-
-  return {
-    publicKey: publicKeyB58,
-    sign: (payload: unknown) => {
-      const message = canonicalStringify(payload);
-      const msgBytes = encoder.encode(message);
-      const signature = nacl.sign.detached(msgBytes, keyPair.secretKey);
-      return {
-        signature: bs58.encode(signature),
-        publicKey: publicKeyB58,
-        message
-      };
+  const tryDecode = (value: string): Uint8Array | null => {
+    try {
+      return new Uint8Array(bs58.decode(value));
+    } catch {
+      return null;
     }
   };
+
+  const decoded = tryDecode(sanitized);
+  if (decoded) {
+    if (decoded.length === 64) {
+      const publicKey = bs58.encode(decoded.slice(32));
+      return { secretKey: decoded, publicKey };
+    }
+    if (decoded.length === 32) {
+      const keyPair = nacl.sign.keyPair.fromSeed(decoded);
+      return { secretKey: keyPair.secretKey, publicKey: bs58.encode(keyPair.publicKey) };
+    }
+  }
+
+  const hash = createHash('sha256').update(input).digest();
+  const seed = new Uint8Array(hash.subarray(0, 32));
+  const keyPair = nacl.sign.keyPair.fromSeed(seed);
+  return { secretKey: keyPair.secretKey, publicKey: bs58.encode(keyPair.publicKey) };
 };
 
-export const verifySig = (payload: unknown, signatureB58: string, publicKeyB58: string): boolean => {
+export const derivePublicKey = (secretKey: string): string => resolveKeyPair(secretKey).publicKey;
+
+export const signResult = (payload: unknown, secretKey: string): string => {
+  const { secretKey: signingKey } = resolveKeyPair(secretKey);
+  const sig = nacl.sign.detached(messageToBytes(payload), signingKey);
+  return bs58.encode(sig);
+};
+
+export const verifyResult = (payload: unknown, signature: string, pubkey: string): boolean => {
   try {
-    const msgBytes = messageToBytes(payload);
-    const signature = bs58.decode(signatureB58);
-    const publicKey = bs58.decode(publicKeyB58);
-    return nacl.sign.detached.verify(msgBytes, signature, publicKey);
+    const msg = messageToBytes(payload);
+    const sig = bs58.decode(signature);
+    const normalized = pubkey.startsWith('ed25519:') ? pubkey.slice(8) : pubkey;
+    const publicKey = bs58.decode(normalized);
+    return nacl.sign.detached.verify(msg, sig, publicKey);
   } catch {
     return false;
   }

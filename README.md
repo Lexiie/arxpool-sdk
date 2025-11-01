@@ -54,27 +54,27 @@ yarn add @arxpool-hq/sdk
 
 Create a .env file:
 
-# Demo (default)
+# Stub (default)
 USE_STUB=true
 ARXPOOL_ATTESTER_SECRET=local-dev
 
-# Live (once Arcium API access is granted)
+# Testnet
 # USE_STUB=false
-# ARCIUM_API_KEY=your_api_key
-# ARXPOOL_MXE_ID=your_mxe_id
+ARXPOOL_NODE=https://testnet.arx.arcium.com
+ARXPOOL_ATTESTER_KEY=ed25519:your_private_key
 
 Initialize in your app:
 
 import { configure } from "@arxpool-hq/sdk";
 
 configure({
-  useStub: process.env.USE_STUB === "true",
+  mode: process.env.USE_STUB === "true" ? "stub" : "testnet",
+  node: process.env.ARXPOOL_NODE,
   attesterSecret: process.env.ARXPOOL_ATTESTER_SECRET,
-  arciumApiKey: process.env.ARCIUM_API_KEY,
-  mxeId: process.env.ARXPOOL_MXE_ID,
+  attesterKey: process.env.ARXPOOL_ATTESTER_KEY,
 });
 
-> 🔐 Never expose secrets (ARCIUM_API_KEY, ARXPOOL_ATTESTER_SECRET) to frontend code.
+> 🔐 Never expose signing keys (ARXPOOL_ATTESTER_SECRET / ARXPOOL_ATTESTER_KEY) to frontend code.
 
 
 
@@ -91,19 +91,20 @@ import {
   verifyResult,
 } from "@arxpool/sdk";
 
-configure({ useStub: true, attesterSecret: "local-dev" });
+configure({ mode: "stub", attesterSecret: "local-dev" });
 
 // 1. Create a new pool
 await createPool({ id: "poll-123", mode: "tally" });
 
 // 2. Submit encrypted inputs
 await joinPool("poll-123", {
-  ciphertext: "b64:...",
+  ciphertext: "base64-or-hpke-ciphertext",
   senderPubkey: "BASE58_PUBKEY",
+  ttlSeconds: 300
 });
 
-// 3. Compute (stub or live)
-const result = await computePool("poll-123", { demoCounts: [4, 3, 2] });
+// 3. Compute (stub or testnet)
+const result = await computePool("poll-123");
 
 // 4. Verify result
 console.log(verifyResult(result)); // true
@@ -118,11 +119,10 @@ configure(config)
 Configure global SDK behavior.
 
 type ArxPoolConfig = {
-  useStub?: boolean;
-  apiBase?: string;
+  mode: "stub" | "testnet";
+  node?: string;
   attesterSecret?: string;
-  mxeId?: string;
-  arciumApiKey?: string;
+  attesterKey?: string;
 };
 
 
@@ -134,7 +134,7 @@ Create a new pool.
 
 type Pool = {
   id: string;
-  mode: "tally" | "sum" | "avg";
+  mode: "tally" | "compute";
 };
 
 
@@ -147,6 +147,8 @@ Submit encrypted data to a pool.
 type EncryptedBlob = {
   ciphertext: string;   // base64 or HPKE payload
   senderPubkey: string; // wallet/public key
+  ttlSeconds?: number;
+  metadata?: Record<string, unknown>;
 };
 
 
@@ -157,18 +159,13 @@ computePool(poolId, options)
 Run the computation.
 
 type ComputeOptions = {
-  demoCounts?: number[]; // stub-only
+  metadata?: Record<string, unknown>;
 };
 
 Returns a signed result:
 
 type SignedResult = {
-  payload: {
-    poolId: string;
-    counts?: number[];
-    job_commit: string;
-    timestamp: number;
-  };
+  payload: unknown;
   signer_pubkey: string;
   signature: string;
 };
@@ -205,10 +202,10 @@ HTTPS only	Required for backend/collector
 Mode	Use Case	Behavior
 
 Stub	Local dev, demo	Deterministic simulated compute
-Live	Arcium MXE	Actual encrypted aggregation
+Testnet	Arcium public testnet	HTTPS requests with signed attestation
 
 
-Toggle using USE_STUB=true/false.
+Toggle via `configure({ mode })` or the `USE_STUB` environment flag.
 
 
 ---
@@ -220,12 +217,12 @@ import {
 } from "@arxpool-hq/sdk";
 
 async function main() {
-  configure({ useStub: true, attesterSecret: "local-dev" });
+  configure({ mode: "stub", attesterSecret: "local-dev" });
 
   await createPool({ id: "poll-xyz", mode: "tally" });
-  await joinPool("poll-xyz", { ciphertext: "b64:...", senderPubkey: "BASE58..." });
+  await joinPool("poll-xyz", { ciphertext: "b64:...", senderPubkey: "BASE58...", ttlSeconds: 300 });
 
-  const res = await computePool("poll-xyz", { demoCounts: [5, 4, 3] });
+  const res = await computePool("poll-xyz");
   console.log("Signed:", res);
   console.log("Verified:", verifyResult(res));
 }
